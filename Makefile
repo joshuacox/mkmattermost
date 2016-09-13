@@ -10,9 +10,9 @@ help:
 
 temp: init
 
-init: MATTERMOST_SECRETS_OTP_KEY_BASE MATTERMOST_SECRETS_SECRET_KEY_BASE MATTERMOST_SECRETS_DB_KEY_BASE TAG IP SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_USER DB_NAME DB_PASS NAME PORT SSH_PORT rmall runpostgresinit runredisinit runmattermostinit
+init: MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT TAG IP SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_USER DB_NAME DB_PASS NAME PORT SSH_PORT rmall runmysqlinit runredisinit runmattermostinit
 
-run: TAG IP MATTERMOST_SECRETS_OTP_KEY_BASE MATTERMOST_SECRETS_SECRET_KEY_BASE MATTERMOST_SECRETS_DB_KEY_BASE SMTP_DOMAIN SMTP_OPENSSL_VERIFY_MODE SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_NAME DB_PASS NAME PORT SSH_PORT rmall runpostgres runredis runmattermost
+run: TAG IP MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT SMTP_DOMAIN SMTP_OPENSSL_VERIFY_MODE SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_NAME DB_PASS NAME PORT SSH_PORT rmall runmysql runredis runmattermost
 
 next: grab rminit run
 
@@ -24,28 +24,28 @@ runredisinit:
 	redis \
 	redis-server --appendonly yes
 
-runpostgresinit: postgresinitCID
+runmysqlinit: mysqlinitCID
 
-postgresinitCID:
+mysqlinitCID:
 	$(eval NAME := $(shell cat NAME))
 	$(eval DB_USER := $(shell cat DB_USER))
 	$(eval DB_PASS := $(shell cat DB_PASS))
 	$(eval DB_NAME := $(shell cat DB_NAME))
 	docker run \
-	--name=$(NAME)-postgresql-init \
+	--name=$(NAME)-mysql-init \
 	-d \
-	--env='DB_NAME=$(DB_NAME)' \
-	--env='DB_EXTENSION=pg_trgm' \
-	--cidfile="postgresinitCID" \
-	--env='DB_USER=$(DB_USER)' --env="DB_PASS=$(DB_PASS)" \
-	sameersbn/postgresql:9.5-2
+	--env='MYSQL_DATABASE=$(DB_NAME)' \
+	--env='MYSQL_USER=$(DB_USER)' --env="MYSQL_PASSWORD=$(DB_PASS)" \
+	--cidfile="mysqlinitCID" \
+	mysql:latest
 
 runmattermostinit:
 	$(eval NAME := $(shell cat NAME))
 	$(eval TAG := $(shell cat TAG))
-	$(eval MATTERMOST_SECRETS_DB_KEY_BASE := $(shell cat MATTERMOST_SECRETS_DB_KEY_BASE))
-	$(eval MATTERMOST_SECRETS_SECRET_KEY_BASE := $(shell cat MATTERMOST_SECRETS_SECRET_KEY_BASE))
-	$(eval MATTERMOST_SECRETS_OTP_KEY_BASE := $(shell cat MATTERMOST_SECRETS_OTP_KEY_BASE))
+	$(eval MATTERMOST_LINK_SALT := $(shell cat MATTERMOST_LINK_SALT))
+	$(eval MATTERMOST_SECRET_KEY := $(shell cat MATTERMOST_SECRET_KEY))
+	$(eval MATTERMOST_RESET_SALT := $(shell cat MATTERMOST_RESET_SALT))
+	$(eval MATTERMOST_INVITE_SALT := $(shell cat MATTERMOST_INVITE_SALT))
 	$(eval IP := $(shell cat IP))
 	$(eval PORT := $(shell cat PORT))
 	$(eval SSH_PORT := $(shell cat SSH_PORT))
@@ -58,22 +58,24 @@ runmattermostinit:
 	$(eval SMTP_USER := $(shell cat SMTP_USER))
 	docker run --name=$(NAME) \
 	-d \
-	--link=$(NAME)-postgresql-init:postgresql \
-	--link=$(NAME)-redis-init:redisio \
+	--link=$(NAME)-mysql-init:mysql \
+	--link=$(NAME)-redis-init:redis \
 	--publish=$(IP):$(PORT):80 \
-	--publish=$(IP):$(SSH_PORT):22 \
+	--env="MATTERMOST_LINK_SALT=$(MATTERMOST_LINK_SALT)" \
+	--env="MATTERMOST_SECRET_KEY=$(MATTERMOST_SECRET_KEY)" \
+	--env="MATTERMOST_RESET_SALT=$(MATTERMOST_RESET_SALT)" \
+	--env="MATTERMOST_INVITE_SALT=$(MATTERMOST_INVITE_SALT)" \
+	--env="DB_ADAPTER=mysql" \
+	--env="DB_HOST=mysql" \
 	--env="DB_NAME=$(DB_NAME)" \
-	--env="MATTERMOST_SECRETS_DB_KEY_BASE=$(MATTERMOST_SECRETS_DB_KEY_BASE)" \
-	--env="MATTERMOST_SECRETS_SECRET_KEY_BASE=$(MATTERMOST_SECRETS_SECRET_KEY_BASE)" \
-	--env="MATTERMOST_SECRETS_OTP_KEY_BASE=$(MATTERMOST_SECRETS_OTP_KEY_BASE)" \
 	--env="DB_USER=$(DB_USER)" \
 	--env="DB_PASS=$(DB_PASS)" \
-	--env="MATTERMOST_PORT=$(PORT)" \
-	--env="SMTP_PORT=$(SMTP_PORT)" \
 	--env="SMTP_HOST=$(SMTP_HOST)" \
-	--env="SMTP_PASS=$(SMTP_PASS)" \
+	--env="SMTP_PORT=$(SMTP_PORT)" \
 	--env="SMTP_USER=$(SMTP_USER)" \
-	--env='MATTERMOST_SSH_PORT=$(SSH_PORT)' \
+	--env="SMTP_PASS=$(SMTP_PASS)" \
+	--env="SMTP_SECURITY=$(SMTP_TLS)" \
+	--env="MATTERMOST_SUPPORT_EMAIL=webmaster@$(SMTP_DOMAIN)" \
 	--env='REDIS_URL=redis://redis:6379/12' \
 	--cidfile="mattermostinitCID" \
 	$(TAG)
@@ -92,28 +94,28 @@ runredis:
 	redis \
 	redis-server --appendonly yes
 
-runpostgres:
+runmysql:
 	$(eval NAME := $(shell cat NAME))
 	$(eval DB_USER := $(shell cat DB_USER))
 	$(eval DB_PASS := $(shell cat DB_PASS))
 	$(eval DB_NAME := $(shell cat DB_NAME))
-	$(eval POSTGRES_DATADIR := $(shell cat POSTGRES_DATADIR))
+	$(eval MYSQL_DATADIR := $(shell cat MYSQL_DATADIR))
 	docker run \
-	--name=$(NAME)-postgresql \
+	--name=$(NAME)-mysql \
 	-d \
-	--env='DB_NAME=$(DB_NAME)' \
-	--cidfile="postgresCID" \
-	--env='DB_EXTENSION=pg_trgm' \
-	--env='DB_USER=$(DB_USER)' --env="DB_PASS=$(DB_PASS)" \
-	--volume=$(POSTGRES_DATADIR):/var/lib/postgresql/ \
-	sameersbn/postgresql:9.5-2
+	--env='MYSQL_DATABASE=$(DB_NAME)' \
+	--env='MYSQL_USER=$(DB_USER)' --env="MYSQL_PASSWORD=$(DB_PASS)" \
+	--cidfile="mysqlCID" \
+	--volume=$(MYSQL_DATADIR):/var/lib/mysql/ \
+	mysql:latest
 
 runmattermost:
 	$(eval NAME := $(shell cat NAME))
 	$(eval TAG := $(shell cat TAG))
-	$(eval MATTERMOST_SECRETS_DB_KEY_BASE := $(shell cat MATTERMOST_SECRETS_DB_KEY_BASE))
-	$(eval MATTERMOST_SECRETS_SECRET_KEY_BASE := $(shell cat MATTERMOST_SECRETS_SECRET_KEY_BASE))
-	$(eval MATTERMOST_SECRETS_OTP_KEY_BASE := $(shell cat MATTERMOST_SECRETS_OTP_KEY_BASE))
+	$(eval MATTERMOST_LINK_SALT := $(shell cat MATTERMOST_LINK_SALT))
+	$(eval MATTERMOST_SECRET_KEY := $(shell cat MATTERMOST_SECRET_KEY))
+	$(eval MATTERMOST_RESET_SALT := $(shell cat MATTERMOST_RESET_SALT))
+	$(eval MATTERMOST_INVITE_SALT := $(shell cat MATTERMOST_INVITE_SALT))
 	$(eval IP := $(shell cat IP))
 	$(eval PORT := $(shell cat PORT))
 	$(eval SSH_PORT := $(shell cat SSH_PORT))
@@ -125,48 +127,43 @@ runmattermost:
 	$(eval SMTP_USER := $(shell cat SMTP_USER))
 	$(eval SMTP_PORT := $(shell cat SMTP_PORT))
 	$(eval SMTP_HOST := $(shell cat SMTP_HOST))
-	$(eval SMTP_OPENSSL_VERIFY_MODE := $(shell cat SMTP_OPENSSL_VERIFY_MODE))
 	$(eval SMTP_TLS := $(shell cat SMTP_TLS))
-	$(eval SMTP_STARTTLS := $(shell cat SMTP_STARTTLS))
 	$(eval SMTP_DOMAIN := $(shell cat SMTP_DOMAIN))
 	docker run --name=$(NAME) \
 	-d \
-	--link=$(NAME)-postgresql:postgresql \
-	--link=$(NAME)-redis:redisio \
+	--link=$(NAME)-mysql:mysql \
+	--link=$(NAME)-redis:redis \
 	--publish=$(IP):$(PORT):80 \
-	--publish=$(IP):$(SSH_PORT):22 \
-	--env="MATTERMOST_SECRETS_DB_KEY_BASE=$(MATTERMOST_SECRETS_DB_KEY_BASE)" \
-	--env="MATTERMOST_SECRETS_SECRET_KEY_BASE=$(MATTERMOST_SECRETS_SECRET_KEY_BASE)" \
-	--env="MATTERMOST_SECRETS_OTP_KEY_BASE=$(MATTERMOST_SECRETS_OTP_KEY_BASE)" \
+	--env="MATTERMOST_LINK_SALT=$(MATTERMOST_LINK_SALT)" \
+	--env="MATTERMOST_SECRET_KEY=$(MATTERMOST_SECRET_KEY)" \
+	--env="MATTERMOST_RESET_SALT=$(MATTERMOST_RESET_SALT)" \
+	--env="MATTERMOST_INVITE_SALT=$(MATTERMOST_INVITE_SALT)" \
+	--env="DB_ADAPTER=mysql" \
+	--env="DB_HOST=mysql" \
 	--env="DB_NAME=$(DB_NAME)" \
 	--env="DB_USER=$(DB_USER)" \
 	--env="DB_PASS=$(DB_PASS)" \
-	--env="SMTP_PORT=$(SMTP_PORT)" \
 	--env="SMTP_HOST=$(SMTP_HOST)" \
-	--env="SMTP_OPENSSL_VERIFY_MODE=$(SMTP_OPENSSL_VERIFY_MODE)" \
-	--env="SMTP_TLS=$(SMTP_TLS)" \
-	--env="SMTP_STARTTLS=$(SMTP_STARTTLS)" \
-	--env="SMTP_DOMAIN=$(SMTP_DOMAIN)" \
-	--env="SMTP_PASS=$(SMTP_PASS)" \
-	--env='MATTERMOST_HTTPS=false' \
+	--env="SMTP_PORT=$(SMTP_PORT)" \
 	--env="SMTP_USER=$(SMTP_USER)" \
-	--env="MATTERMOST_PORT=$(PORT)" \
-	--env='MATTERMOST_SSH_PORT=$(SSH_PORT)' \
+	--env="SMTP_PASS=$(SMTP_PASS)" \
+	--env="SMTP_SECURITY=$(SMTP_TLS)" \
+	--env="MATTERMOST_SUPPORT_EMAIL=webmaster@$(SMTP_DOMAIN)" \
 	--env='REDIS_URL=redis://redis:6379/12' \
-	--volume=$(MATTERMOST_DATADIR):/home/git/data \
+	--volume=$(MATTERMOST_DATADIR):/opt/mattermost/data \
 	--cidfile="mattermostCID" \
 	$(TAG)
 
 kill:
 	-@docker kill `cat mattermostCID`
 	-@docker kill `cat mysqlCID`
-	-@docker kill `cat postgresCID`
+	-@docker kill `cat mysqlCID`
 	-@docker kill `cat redisCID`
 
 killinit:
 	-@docker kill `cat mattermostinitCID`
 	-@docker kill `cat mysqlinitCID`
-	-@docker kill `cat postgresinitCID`
+	-@docker kill `cat mysqlinitCID`
 	-@docker kill `cat redisinitCID`
 
 rm-redimage:
@@ -175,13 +172,13 @@ rm-redimage:
 rm-initimage:
 	-@docker rm `cat mattermostinitCID`
 	-@docker rm `cat mysqlinitCID`
-	-@docker rm `cat postgresinitCID`
+	-@docker rm `cat mysqlinitCID`
 	-@docker rm `cat redisinitCID`
 
 rm-image:
 	-@docker rm `cat mattermostCID`
 	-@docker rm `cat mysqlCID`
-	-@docker rm `cat postgresCID`
+	-@docker rm `cat mysqlCID`
 	-@docker rm `cat redisCID`
 
 rm-redcids:
@@ -190,13 +187,13 @@ rm-redcids:
 rm-initcids:
 	-@rm mattermostinitCID
 	-@rm mysqlinitCID
-	-@rm postgresinitCID
+	-@rm mysqlinitCID
 	-@rm redisinitCID
 
 rm-cids:
 	-@rm mattermostCID
 	-@rm mysqlCID
-	-@rm postgresCID
+	-@rm mysqlCID
 	-@rm redisCID
 
 rmall: kill rm-image rm-cids
@@ -214,18 +211,18 @@ enter:
 	docker exec -i -t `cat mattermostCID` /bin/bash
 
 pgenter:
-	docker exec -i -t `cat postgresCID` /bin/bash
+	docker exec -i -t `cat mysqlCID` /bin/bash
 
-grab: grabmattermostdir grabpostgresdatadir grabredisdatadir
+grab: grabmattermostdir grabmysqldatadir grabredisdatadir
 
 mysqlgrab: grabmattermostdir grabmysqldatadir
 
 externgrab: grabmattermostdir grabredisdatadir
 
-grabpostgresdatadir:
-	-@mkdir -p /exports/mattermost/postgresql
-	docker cp `cat postgresinitCID`:/var/lib/postgresql  - |sudo tar -C /exports/mattermost/ -pxf -
-	echo /exports/mattermost/postgresql > POSTGRES_DATADIR
+grabmysqldatadir:
+	-@mkdir -p /exports/mattermost/mysql
+	docker cp `cat mysqlinitCID`:/var/lib/mysql  - |sudo tar -C /exports/mattermost/ -pxf -
+	echo /exports/mattermost/mysql > MYSQL_DATADIR
 
 grabmysqldatadir:
 	-@mkdir -p /exports/mattermost/mysql
@@ -344,20 +341,20 @@ example:
 	cp -i TAG.example TAG
 	echo 'mkmattermost' > NAME
 	curl icanhazip.com > IP
-	echo 'false' > SMTP_TLS
-	echo 'true' > SMTP_STARTTLS
+	echo 'TLS' > SMTP_TLS
 	echo 'smtp.gmail.com' > SMTP_HOST
 	echo 'www.gmail.com' > SMTP_DOMAIN
 	echo '587' > SMTP_PORT
-	echo '7022' > SSH_PORT
-	echo '7080' > PORT
-	touch SMTP_OPENSSL_VERIFY_MODE
+	echo '5080' > PORT
 
-MATTERMOST_SECRETS_SECRET_KEY_BASE:
-	pwgen -Bsv1 64 > MATTERMOST_SECRETS_SECRET_KEY_BASE
+MATTERMOST_SECRET_KEY:
+	pwgen -Bsv1 64 > MATTERMOST_SECRET_KEY
 
-MATTERMOST_SECRETS_DB_KEY_BASE:
-	pwgen -Bsv1 64 > MATTERMOST_SECRETS_DB_KEY_BASE
+MATTERMOST_LINK_SALT:
+	pwgen -Bsv1 64 > MATTERMOST_LINK_SALT
 
-MATTERMOST_SECRETS_OTP_KEY_BASE:
-	pwgen -Bsv1 64 > MATTERMOST_SECRETS_OTP_KEY_BASE
+MATTERMOST_RESET_SALT:
+	pwgen -Bsv1 64 > MATTERMOST_RESET_SALT
+
+MATTERMOST_INVITE_SALT:
+	pwgen -Bsv1 64 > MATTERMOST_INVITE_SALT
