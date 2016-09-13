@@ -10,9 +10,9 @@ help:
 
 temp: init
 
-init: MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT TAG IP SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_USER DB_NAME DB_PASS NAME PORT SSH_PORT rmall runmysqlinit runredisinit runmattermostinit
+init: MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT TAG IP SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_USER DB_NAME DB_PASS NAME PORT rmall runmysqlinit runredisinit runmattermostinit
 
-run: TAG IP MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT SMTP_DOMAIN SMTP_OPENSSL_VERIFY_MODE SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_NAME DB_PASS NAME PORT SSH_PORT rmall runmysql runredis runmattermost
+run: TAG IP MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT SMTP_DOMAIN SMTP_OPENSSL_VERIFY_MODE SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_NAME DB_PASS NAME PORT rmall runmysql runredis runmattermost
 
 next: grab rminit run
 
@@ -48,7 +48,6 @@ runmattermostinit:
 	$(eval MATTERMOST_INVITE_SALT := $(shell cat MATTERMOST_INVITE_SALT))
 	$(eval IP := $(shell cat IP))
 	$(eval PORT := $(shell cat PORT))
-	$(eval SSH_PORT := $(shell cat SSH_PORT))
 	$(eval DB_NAME := $(shell cat DB_NAME))
 	$(eval DB_USER := $(shell cat DB_USER))
 	$(eval DB_PASS := $(shell cat DB_PASS))
@@ -118,7 +117,6 @@ runmattermost:
 	$(eval MATTERMOST_INVITE_SALT := $(shell cat MATTERMOST_INVITE_SALT))
 	$(eval IP := $(shell cat IP))
 	$(eval PORT := $(shell cat PORT))
-	$(eval SSH_PORT := $(shell cat SSH_PORT))
 	$(eval MATTERMOST_DATADIR := $(shell cat MATTERMOST_DATADIR))
 	$(eval DB_NAME := $(shell cat DB_NAME))
 	$(eval DB_USER := $(shell cat DB_USER))
@@ -285,11 +283,6 @@ DB_HOST:
 DB_USER:
 	@while [ -z "$$DB_USER" ]; do \
 		read -r -p "Enter the DB_USER you wish to associate with this container [DB_USER]: " DB_USER; echo "$$DB_USER">>DB_USER; cat DB_USER; \
-	done ;
-
-SSH_PORT:
-	@while [ -z "$$SSH_PORT" ]; do \
-		read -r -p "Enter the SSH_PORT you wish to associate with this container [SSH_PORT]: " SSH_PORT; echo "$$SSH_PORT">>SSH_PORT; cat SSH_PORT; \
 	done ;
 
 SMTP_PORT:
