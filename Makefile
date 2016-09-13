@@ -346,8 +346,8 @@ example:
 	echo 'www.gmail.com' > SMTP_DOMAIN
 	echo '587' > SMTP_PORT
 	echo '5080' > PORT
-	echo 'mkmattermost' DB_USER
-	echo 'mkmattermostdb' DB_NAME
+	echo 'mkmattermost' > DB_USER
+	echo 'mkmattermostdb' > DB_NAME
 	pwgen -Bsv1 32 > DB_PASS
 
 MATTERMOST_SECRET_KEY:
