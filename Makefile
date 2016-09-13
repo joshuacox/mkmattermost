@@ -354,3 +354,42 @@ MATTERMOST_RESET_SALT:
 
 MATTERMOST_INVITE_SALT:
 	pwgen -Bsv1 64 > MATTERMOST_INVITE_SALT
+
+
+build: TAG NAME
+	$(eval TMP := $(shell mktemp -d --suffix=MATTERMOSTBLDTMP))
+	$(eval TAG := $(shell cat TAG))
+	$(eval NAME := $(shell cat NAME))
+	cd $(TMP) ; \
+	git clone https://github.com/mattermost/mattermost-docker ; \
+	cd $(TMP)/mattermost-docker/db ; \
+	docker build -t $(NAME)/db . ; \
+	cd $(TMP)/mattermost-docker/app ; \
+	docker build -t $(NAME)/app . ; \
+	cd $(TMP)/mattermost-docker/web ; \
+	docker build -t $(NAME)/web . ; \
+	ls $(TMP)/mattermost-docker
+	docker images |grep $(NAME)
+	rm  -Rf $(TMP)
+
+push: NAME REGISTRY REGISTRY_PORT
+	$(eval NAME := $(shell cat NAME))
+	$(eval REGISTRY := $(shell cat REGISTRY))
+	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
+	docker tag $(NAME)/db $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db
+	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db
+	docker tag $(NAME)/app $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app
+	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app
+	docker tag $(NAME)/web $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web
+	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web
+
+REGISTRY:
+	@while [ -z "$$REGISTRY" ]; do \
+		read -r -p "Enter the registry you wish to associate with this container [REGISTRY]: " REGISTRY; echo "$$REGISTRY">>REGISTRY; cat REGISTRY; \
+	done ;
+
+REGISTRY_PORT:
+	@while [ -z "$$REGISTRY_PORT" ]; do \
+		read -r -p "Enter the port of the registry you wish to associate with this container, usually 5000 [REGISTRY_PORT]: " REGISTRY_PORT; echo "$$REGISTRY_PORT">>REGISTRY_PORT; cat REGISTRY_PORT; \
+	done ;
+
