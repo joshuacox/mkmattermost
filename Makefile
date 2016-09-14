@@ -16,6 +16,8 @@ run: TAG IP MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT M
 
 next: grab rminit run
 
+builder: build tag push
+
 runredisinit:
 	$(eval NAME := $(shell cat NAME))
 	docker run --name $(NAME)-redis-init \
@@ -383,15 +385,20 @@ build: TAG NAME
 	docker images |grep $(NAME)
 	rm  -Rf $(TMP)
 
-push: NAME REGISTRY REGISTRY_PORT
+tag: NAME REGISTRY REGISTRY_PORT
 	$(eval NAME := $(shell cat NAME))
 	$(eval REGISTRY := $(shell cat REGISTRY))
 	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
 	docker tag $(NAME)/db:latest $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
-	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
 	docker tag $(NAME)/app:latest $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app:latest
-	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app:latest
 	docker tag $(NAME)/web:latest $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web:latest
+
+push: NAME REGISTRY REGISTRY_PORT
+	$(eval NAME := $(shell cat NAME))
+	$(eval REGISTRY := $(shell cat REGISTRY))
+	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
+	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
+	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app:latest
 	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web:latest
 
 pull: NAME REGISTRY REGISTRY_PORT
@@ -411,3 +418,4 @@ REGISTRY_PORT:
 	@while [ -z "$$REGISTRY_PORT" ]; do \
 		read -r -p "Enter the port of the registry you wish to associate with this container, usually 5000 [REGISTRY_PORT]: " REGISTRY_PORT; echo "$$REGISTRY_PORT">>REGISTRY_PORT; cat REGISTRY_PORT; \
 	done ;
+
