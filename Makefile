@@ -12,7 +12,7 @@ temp: init
 
 init: MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT TAG IP SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_USER DB_NAME DB_PASS NAME PORT rmall runpostgresqlinit runredisinit runmattermostinit
 
-run: TAG IP MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT SMTP_DOMAIN SMTP_OPENSSL_VERIFY_MODE SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_NAME DB_PASS NAME PORT rmall runpostgresql runredis runmattermost
+run: TAG IP MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT SMTP_DOMAIN  SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_NAME DB_PASS NAME PORT rmall runpostgresql runredis runmattermost
 
 next: grab rminit run
 
@@ -26,8 +26,10 @@ runredisinit:
 
 runpostgresqlinit: postgresqlinitCID
 
-postgresqlinitCID:
+postgresqlinitCID: REGISTRY REGISTRY_PORT
 	$(eval NAME := $(shell cat NAME))
+	$(eval REGISTRY := $(shell cat REGISTRY))
+	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
 	$(eval DB_USER := $(shell cat DB_USER))
 	$(eval DB_PASS := $(shell cat DB_PASS))
 	$(eval DB_NAME := $(shell cat DB_NAME))
@@ -35,11 +37,13 @@ postgresqlinitCID:
 	--name=$(NAME)-postgresql-init \
 	-d \
 	--cidfile="postgresqlinitCID" \
-	$(NAME)/db
+	$(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
 
-runmattermostinit:
+runmattermostinit: REGISTRY REGISTRY_PORT
 	$(eval NAME := $(shell cat NAME))
 	$(eval TAG := $(shell cat TAG))
+	$(eval REGISTRY := $(shell cat REGISTRY))
+	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
 	$(eval MATTERMOST_LINK_SALT := $(shell cat MATTERMOST_LINK_SALT))
 	$(eval MATTERMOST_SECRET_KEY := $(shell cat MATTERMOST_SECRET_KEY))
 	$(eval MATTERMOST_RESET_SALT := $(shell cat MATTERMOST_RESET_SALT))
@@ -75,7 +79,7 @@ runmattermostinit:
 	--env="MATTERMOST_SUPPORT_EMAIL=webmaster@$(SMTP_DOMAIN)" \
 	--env='REDIS_URL=redis://redis:6379/12' \
 	--cidfile="mattermostinitCID" \
-	$(NAME)/app
+	$(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app:latest
 
 #	sameersbn/mattermost:2.6-latest
 # used to be last line above --> 	-t joshuacox/mattermostinit
@@ -91,8 +95,10 @@ runredis:
 	redis \
 	redis-server --appendonly yes
 
-runpostgresql:
+runpostgresql: REGISTRY REGISTRY_PORT
 	$(eval NAME := $(shell cat NAME))
+	$(eval REGISTRY := $(shell cat REGISTRY))
+	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
 	$(eval DB_USER := $(shell cat DB_USER))
 	$(eval DB_PASS := $(shell cat DB_PASS))
 	$(eval DB_NAME := $(shell cat DB_NAME))
@@ -102,11 +108,13 @@ runpostgresql:
 	-d \
 	--cidfile="postgresqlCID" \
 	--volume=$(POSTGRESQL_DATADIR):/var/lib/postgresql/data \
-	$(NAME)/db
+	$(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
 
-runmattermost:
+runmattermost: REGISTRY REGISTRY_PORT
 	$(eval NAME := $(shell cat NAME))
 	$(eval TAG := $(shell cat TAG))
+	$(eval REGISTRY := $(shell cat REGISTRY))
+	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
 	$(eval MATTERMOST_LINK_SALT := $(shell cat MATTERMOST_LINK_SALT))
 	$(eval MATTERMOST_SECRET_KEY := $(shell cat MATTERMOST_SECRET_KEY))
 	$(eval MATTERMOST_RESET_SALT := $(shell cat MATTERMOST_RESET_SALT))
@@ -144,9 +152,11 @@ runmattermost:
 	--env="SMTP_SECURITY=$(SMTP_TLS)" \
 	--env="MATTERMOST_SUPPORT_EMAIL=webmaster@$(SMTP_DOMAIN)" \
 	--env='REDIS_URL=redis://redis:6379/12' \
-	--volume=$(MATTERMOST_DATADIR):/opt/mattermost/data \
+	--volume=$(MATTERMOST_DATADIR)/data:/mattermost/data \
+	--volume=$(MATTERMOST_DATADIR)/config:/mattermost/config \
+	--volume=/etc/localtime:/etc/localtime:ro \
 	--cidfile="mattermostCID" \
-	$(NAME)/app
+	$(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app:latest
 
 kill:
 	-@docker kill `cat mattermostCID`
@@ -217,11 +227,6 @@ grabpostgresqldatadir:
 	-@mkdir -p /exports/mattermost/postgresql/data
 	docker cp `cat postgresqlinitCID`:/var/lib/postgresql/data  - |sudo tar -C /exports/mattermost/postgresql/data -pxf -
 	echo /exports/mattermost/postgresql/data > POSTGRESQL_DATADIR
-
-grabpostgresqldatadir:
-	-@mkdir -p /exports/mattermost/postgresql
-	docker cp `cat postgresqlinitCID`:/var/lib/postgresql  - |sudo tar -C /exports/mattermost/ -pxf -
-	echo /exports/mattermost/postgresql > POSTGRESQL_DATADIR
 
 grabmattermostdir:
 	-@mkdir -p /exports/mattermost/git
@@ -326,7 +331,18 @@ PORT:
 		read -r -p "Enter the port you wish to associate with this container [PORT]: " PORT; echo "$$PORT">>PORT; cat PORT; \
 	done ;
 
-example:
+exampledatadir:
+	echo /exports/mattermost/postgresql/data > POSTGRESQL_DATADIR
+	echo /exports/mattermost/mattermost/data > MATTERMOST_DATADIR
+	echo /exports/mattermost/postgresql/data > REDIS_DATADIR
+
+example: exampledatadir
+	$(eval POSTGRESQL_DATADIR := $(shell cat POSTGRESQL_DATADIR))
+	$(eval MATTERMOST_DATADIR := $(shell cat MATTERMOST_DATADIR))
+	$(eval REDIS_DATADIR := $(shell cat REDIS_DATADIR))
+	mkdir -p $(POSTGRESQL_DATADIR)
+	mkdir -p $(MATTERMOST_DATADIR)
+	mkdir -p $(REDIS_DATADIR)
 	cp -i TAG.example TAG
 	echo 'mkmattermost' > NAME
 	curl icanhazip.com > IP
@@ -358,11 +374,11 @@ build: TAG NAME
 	cd $(TMP) ; \
 	git clone https://github.com/mattermost/mattermost-docker ; \
 	cd $(TMP)/mattermost-docker/db ; \
-	docker build -t $(NAME)/db . ; \
+	docker build -t $(NAME)/db:latest . ; \
 	cd $(TMP)/mattermost-docker/app ; \
-	docker build -t $(NAME)/app . ; \
+	docker build -t $(NAME)/app:latest . ; \
 	cd $(TMP)/mattermost-docker/web ; \
-	docker build -t $(NAME)/web . ; \
+	docker build -t $(NAME)/web:latest . ; \
 	ls $(TMP)/mattermost-docker
 	docker images |grep $(NAME)
 	rm  -Rf $(TMP)
@@ -371,20 +387,20 @@ push: NAME REGISTRY REGISTRY_PORT
 	$(eval NAME := $(shell cat NAME))
 	$(eval REGISTRY := $(shell cat REGISTRY))
 	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
-	docker tag $(NAME)/db $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db
-	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db
-	docker tag $(NAME)/app $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app
-	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app
-	docker tag $(NAME)/web $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web
-	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web
+	docker tag $(NAME)/db:latest $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
+	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
+	docker tag $(NAME)/app:latest $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app:latest
+	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app:latest
+	docker tag $(NAME)/web:latest $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web:latest
+	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web:latest
 
 pull: NAME REGISTRY REGISTRY_PORT
 	$(eval NAME := $(shell cat NAME))
 	$(eval REGISTRY := $(shell cat REGISTRY))
 	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
-	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db
-	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app
-	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web
+	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
+	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app:latest
+	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web:latest
 
 REGISTRY:
 	@while [ -z "$$REGISTRY" ]; do \
