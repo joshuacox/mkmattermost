@@ -10,9 +10,9 @@ help:
 
 temp: init
 
-init: MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT TAG IP SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_USER DB_NAME DB_PASS NAME PORT rmall runmysqlinit runredisinit runmattermostinit
+init: MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT TAG IP SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_USER DB_NAME DB_PASS NAME PORT rmall runpostgresqlinit runredisinit runmattermostinit
 
-run: TAG IP MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT SMTP_DOMAIN SMTP_OPENSSL_VERIFY_MODE SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_NAME DB_PASS NAME PORT rmall runmysql runredis runmattermost
+run: TAG IP MATTERMOST_RESET_SALT MATTERMOST_SECRET_KEY MATTERMOST_INVITE_SALT MATTERMOST_LINK_SALT SMTP_DOMAIN SMTP_OPENSSL_VERIFY_MODE SMTP_HOST SMTP_PORT SMTP_PASS SMTP_USER DB_NAME DB_PASS NAME PORT rmall runpostgresql runredis runmattermost
 
 next: grab rminit run
 
@@ -24,20 +24,18 @@ runredisinit:
 	redis \
 	redis-server --appendonly yes
 
-runmysqlinit: mysqlinitCID
+runpostgresqlinit: postgresqlinitCID
 
-mysqlinitCID:
+postgresqlinitCID:
 	$(eval NAME := $(shell cat NAME))
 	$(eval DB_USER := $(shell cat DB_USER))
 	$(eval DB_PASS := $(shell cat DB_PASS))
 	$(eval DB_NAME := $(shell cat DB_NAME))
 	docker run \
-	--name=$(NAME)-mysql-init \
+	--name=$(NAME)-postgresql-init \
 	-d \
-	--env='MYSQL_DATABASE=$(DB_NAME)' \
-	--env='MYSQL_USER=$(DB_USER)' --env="MYSQL_PASSWORD=$(DB_PASS)" \
-	--cidfile="mysqlinitCID" \
-	mysql:latest
+	--cidfile="postgresqlinitCID" \
+	$(NAME)/db
 
 runmattermostinit:
 	$(eval NAME := $(shell cat NAME))
@@ -57,15 +55,15 @@ runmattermostinit:
 	$(eval SMTP_USER := $(shell cat SMTP_USER))
 	docker run --name=$(NAME) \
 	-d \
-	--link=$(NAME)-mysql-init:mysql \
+	--link=$(NAME)-postgresql-init:postgresql \
 	--link=$(NAME)-redis-init:redis \
 	--publish=$(IP):$(PORT):80 \
 	--env="MATTERMOST_LINK_SALT=$(MATTERMOST_LINK_SALT)" \
 	--env="MATTERMOST_SECRET_KEY=$(MATTERMOST_SECRET_KEY)" \
 	--env="MATTERMOST_RESET_SALT=$(MATTERMOST_RESET_SALT)" \
 	--env="MATTERMOST_INVITE_SALT=$(MATTERMOST_INVITE_SALT)" \
-	--env="DB_ADAPTER=mysql" \
-	--env="DB_HOST=mysql" \
+	--env="DB_ADAPTER=postgresql" \
+	--env="DB_HOST=postgresql" \
 	--env="DB_NAME=$(DB_NAME)" \
 	--env="DB_USER=$(DB_USER)" \
 	--env="DB_PASS=$(DB_PASS)" \
@@ -77,7 +75,7 @@ runmattermostinit:
 	--env="MATTERMOST_SUPPORT_EMAIL=webmaster@$(SMTP_DOMAIN)" \
 	--env='REDIS_URL=redis://redis:6379/12' \
 	--cidfile="mattermostinitCID" \
-	$(TAG)
+	$(NAME)/app
 
 #	sameersbn/mattermost:2.6-latest
 # used to be last line above --> 	-t joshuacox/mattermostinit
@@ -93,20 +91,18 @@ runredis:
 	redis \
 	redis-server --appendonly yes
 
-runmysql:
+runpostgresql:
 	$(eval NAME := $(shell cat NAME))
 	$(eval DB_USER := $(shell cat DB_USER))
 	$(eval DB_PASS := $(shell cat DB_PASS))
 	$(eval DB_NAME := $(shell cat DB_NAME))
-	$(eval MYSQL_DATADIR := $(shell cat MYSQL_DATADIR))
+	$(eval POSTGRESQL_DATADIR := $(shell cat POSTGRESQL_DATADIR))
 	docker run \
-	--name=$(NAME)-mysql \
+	--name=$(NAME)-postgresql \
 	-d \
-	--env='MYSQL_DATABASE=$(DB_NAME)' \
-	--env='MYSQL_USER=$(DB_USER)' --env="MYSQL_PASSWORD=$(DB_PASS)" \
-	--cidfile="mysqlCID" \
-	--volume=$(MYSQL_DATADIR):/var/lib/mysql/ \
-	mysql:latest
+	--cidfile="postgresqlCID" \
+	--volume=$(POSTGRESQL_DATADIR):/var/lib/postgresql/data \
+	$(NAME)/db
 
 runmattermost:
 	$(eval NAME := $(shell cat NAME))
@@ -129,15 +125,15 @@ runmattermost:
 	$(eval SMTP_DOMAIN := $(shell cat SMTP_DOMAIN))
 	docker run --name=$(NAME) \
 	-d \
-	--link=$(NAME)-mysql:mysql \
+	--link=$(NAME)-postgresql:postgresql \
 	--link=$(NAME)-redis:redis \
 	--publish=$(IP):$(PORT):80 \
 	--env="MATTERMOST_LINK_SALT=$(MATTERMOST_LINK_SALT)" \
 	--env="MATTERMOST_SECRET_KEY=$(MATTERMOST_SECRET_KEY)" \
 	--env="MATTERMOST_RESET_SALT=$(MATTERMOST_RESET_SALT)" \
 	--env="MATTERMOST_INVITE_SALT=$(MATTERMOST_INVITE_SALT)" \
-	--env="DB_ADAPTER=mysql" \
-	--env="DB_HOST=mysql" \
+	--env="DB_ADAPTER=postgresql" \
+	--env="DB_HOST=postgresql" \
 	--env="DB_NAME=$(DB_NAME)" \
 	--env="DB_USER=$(DB_USER)" \
 	--env="DB_PASS=$(DB_PASS)" \
@@ -150,18 +146,18 @@ runmattermost:
 	--env='REDIS_URL=redis://redis:6379/12' \
 	--volume=$(MATTERMOST_DATADIR):/opt/mattermost/data \
 	--cidfile="mattermostCID" \
-	$(TAG)
+	$(NAME)/app
 
 kill:
 	-@docker kill `cat mattermostCID`
-	-@docker kill `cat mysqlCID`
-	-@docker kill `cat mysqlCID`
+	-@docker kill `cat postgresqlCID`
+	-@docker kill `cat postgresqlCID`
 	-@docker kill `cat redisCID`
 
 killinit:
 	-@docker kill `cat mattermostinitCID`
-	-@docker kill `cat mysqlinitCID`
-	-@docker kill `cat mysqlinitCID`
+	-@docker kill `cat postgresqlinitCID`
+	-@docker kill `cat postgresqlinitCID`
 	-@docker kill `cat redisinitCID`
 
 rm-redimage:
@@ -169,14 +165,14 @@ rm-redimage:
 
 rm-initimage:
 	-@docker rm `cat mattermostinitCID`
-	-@docker rm `cat mysqlinitCID`
-	-@docker rm `cat mysqlinitCID`
+	-@docker rm `cat postgresqlinitCID`
+	-@docker rm `cat postgresqlinitCID`
 	-@docker rm `cat redisinitCID`
 
 rm-image:
 	-@docker rm `cat mattermostCID`
-	-@docker rm `cat mysqlCID`
-	-@docker rm `cat mysqlCID`
+	-@docker rm `cat postgresqlCID`
+	-@docker rm `cat postgresqlCID`
 	-@docker rm `cat redisCID`
 
 rm-redcids:
@@ -184,14 +180,14 @@ rm-redcids:
 
 rm-initcids:
 	-@rm mattermostinitCID
-	-@rm mysqlinitCID
-	-@rm mysqlinitCID
+	-@rm postgresqlinitCID
+	-@rm postgresqlinitCID
 	-@rm redisinitCID
 
 rm-cids:
 	-@rm mattermostCID
-	-@rm mysqlCID
-	-@rm mysqlCID
+	-@rm postgresqlCID
+	-@rm postgresqlCID
 	-@rm redisCID
 
 rmall: kill rm-image rm-cids
@@ -209,23 +205,23 @@ enter:
 	docker exec -i -t `cat mattermostCID` /bin/bash
 
 pgenter:
-	docker exec -i -t `cat mysqlCID` /bin/bash
+	docker exec -i -t `cat postgresqlCID` /bin/bash
 
-grab: grabmattermostdir grabmysqldatadir grabredisdatadir
+grab: grabmattermostdir grabpostgresqldatadir grabredisdatadir
 
-mysqlgrab: grabmattermostdir grabmysqldatadir
+postgresqlgrab: grabmattermostdir grabpostgresqldatadir
 
 externgrab: grabmattermostdir grabredisdatadir
 
-grabmysqldatadir:
-	-@mkdir -p /exports/mattermost/mysql
-	docker cp `cat mysqlinitCID`:/var/lib/mysql  - |sudo tar -C /exports/mattermost/ -pxf -
-	echo /exports/mattermost/mysql > MYSQL_DATADIR
+grabpostgresqldatadir:
+	-@mkdir -p /exports/mattermost/postgresql/data
+	docker cp `cat postgresqlinitCID`:/var/lib/postgresql/data  - |sudo tar -C /exports/mattermost/postgresql/data -pxf -
+	echo /exports/mattermost/postgresql/data > POSTGRESQL_DATADIR
 
-grabmysqldatadir:
-	-@mkdir -p /exports/mattermost/mysql
-	docker cp `cat mysqlinitCID`:/var/lib/mysql  - |sudo tar -C /exports/mattermost/ -pxf -
-	echo /exports/mattermost/mysql > MYSQL_DATADIR
+grabpostgresqldatadir:
+	-@mkdir -p /exports/mattermost/postgresql
+	docker cp `cat postgresqlinitCID`:/var/lib/postgresql  - |sudo tar -C /exports/mattermost/ -pxf -
+	echo /exports/mattermost/postgresql > POSTGRESQL_DATADIR
 
 grabmattermostdir:
 	-@mkdir -p /exports/mattermost/git
@@ -355,7 +351,6 @@ MATTERMOST_RESET_SALT:
 MATTERMOST_INVITE_SALT:
 	pwgen -Bsv1 64 > MATTERMOST_INVITE_SALT
 
-
 build: TAG NAME
 	$(eval TMP := $(shell mktemp -d --suffix=MATTERMOSTBLDTMP))
 	$(eval TAG := $(shell cat TAG))
@@ -383,6 +378,14 @@ push: NAME REGISTRY REGISTRY_PORT
 	docker tag $(NAME)/web $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web
 	docker push $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web
 
+pull: NAME REGISTRY REGISTRY_PORT
+	$(eval NAME := $(shell cat NAME))
+	$(eval REGISTRY := $(shell cat REGISTRY))
+	$(eval REGISTRY_PORT := $(shell cat REGISTRY_PORT))
+	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db
+	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/app
+	docker pull $(REGISTRY):$(REGISTRY_PORT)/$(NAME)/web
+
 REGISTRY:
 	@while [ -z "$$REGISTRY" ]; do \
 		read -r -p "Enter the registry you wish to associate with this container [REGISTRY]: " REGISTRY; echo "$$REGISTRY">>REGISTRY; cat REGISTRY; \
@@ -392,4 +395,3 @@ REGISTRY_PORT:
 	@while [ -z "$$REGISTRY_PORT" ]; do \
 		read -r -p "Enter the port of the registry you wish to associate with this container, usually 5000 [REGISTRY_PORT]: " REGISTRY_PORT; echo "$$REGISTRY_PORT">>REGISTRY_PORT; cat REGISTRY_PORT; \
 	done ;
-
