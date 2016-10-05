@@ -231,14 +231,15 @@ grabpostgresqldatadir:
 	echo /exports/mattermost/postgresql/data > POSTGRESQL_DATADIR
 
 grabmattermostdir:
-	-@mkdir -p /exports/mattermost/git
-	docker cp `cat mattermostinitCID`:/home/git/data  - |sudo tar -C /exports/mattermost/git/ -pxf -
-	echo /exports/mattermost/mattermost/data > MATTERMOST_DATADIR
+	-@mkdir -p /exports/mattermost
+	docker cp `cat mattermostinitCID`:/mattermost/data  - |sudo tar -C /exports/mattermost/ -pxf -
+	docker cp `cat mattermostinitCID`:/mattermost/config  - |sudo tar -C /exports/mattermost/ -pxf -
+	echo /exports/mattermost > MATTERMOST_DATADIR
 
 grabredisdatadir:
 	-@mkdir -p /exports/mattermost/redis
-	docker cp `cat redisinitCID`:/data  - |sudo tar -C /exports/datadir/redis/ -pxf -
-	echo /exports/mattermost/redis > REDIS_DATADIR
+	docker cp `cat redisinitCID`:/data  - |sudo tar -C /exports/mattermost/redis -pxf -
+	echo /exports/mattermost/redis/data > REDIS_DATADIR
 
 logs:
 	docker logs -f `cat mattermostCID`
