@@ -110,6 +110,7 @@ runpostgresql: REGISTRY REGISTRY_PORT
 	-d \
 	--cidfile="postgresqlCID" \
 	--volume=$(POSTGRESQL_DATADIR):/var/lib/postgresql/data \
+	--volume=/etc/localtime:/etc/localtime:ro \
 	$(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
 
 runmattermost: REGISTRY REGISTRY_PORT
