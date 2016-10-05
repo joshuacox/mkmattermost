@@ -228,7 +228,7 @@ externgrab: grabmattermostdir grabredisdatadir
 
 grabpostgresqldatadir:
 	-@mkdir -p /exports/mattermost/postgresql/data
-	docker cp `cat postgresqlinitCID`:/var/lib/postgresql/data  - |sudo tar -C /exports/mattermost/postgresql/data -pxf -
+	docker cp `cat postgresqlinitCID`:/var/lib/postgresql/data  - |sudo tar -C /exports/mattermost/postgresql -pxf -
 	echo /exports/mattermost/postgresql/data > POSTGRESQL_DATADIR
 
 grabmattermostdir:
