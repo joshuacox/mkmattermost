@@ -113,7 +113,7 @@ runpostgresql: REGISTRY REGISTRY_PORT
 	--volume=/etc/localtime:/etc/localtime:ro \
 	$(REGISTRY):$(REGISTRY_PORT)/$(NAME)/db:latest
 
-runmattermost: REGISTRY REGISTRY_PORT
+runmattermost: REGISTRY REGISTRY_PORT WEBSOCKET_PORT
 	$(eval NAME := $(shell cat NAME))
 	$(eval TAG := $(shell cat TAG))
 	$(eval REGISTRY := $(shell cat REGISTRY))
@@ -124,6 +124,7 @@ runmattermost: REGISTRY REGISTRY_PORT
 	$(eval MATTERMOST_INVITE_SALT := $(shell cat MATTERMOST_INVITE_SALT))
 	$(eval IP := $(shell cat IP))
 	$(eval PORT := $(shell cat PORT))
+	$(eval WEBSOCKET_PORT := $(shell cat WEBSOCKET_PORT))
 	$(eval MATTERMOST_DATADIR := $(shell cat MATTERMOST_DATADIR))
 	$(eval DB_NAME := $(shell cat DB_NAME))
 	$(eval DB_USER := $(shell cat DB_USER))
@@ -139,6 +140,7 @@ runmattermost: REGISTRY REGISTRY_PORT
 	--link=$(NAME)-postgresql:postgresql \
 	--link=$(NAME)-redis:redis \
 	--publish=$(IP):$(PORT):80 \
+	--publish=$(IP):$(WEBSOCKET_PORT):8065 \
 	--env="MATTERMOST_LINK_SALT=$(MATTERMOST_LINK_SALT)" \
 	--env="MATTERMOST_SECRET_KEY=$(MATTERMOST_SECRET_KEY)" \
 	--env="MATTERMOST_RESET_SALT=$(MATTERMOST_RESET_SALT)" \
@@ -333,6 +335,11 @@ SMTP_USER:
 PORT:
 	@while [ -z "$$PORT" ]; do \
 		read -r -p "Enter the port you wish to associate with this container [PORT]: " PORT; echo "$$PORT">>PORT; cat PORT; \
+	done ;
+
+WEBSOCKET_PORT:
+	@while [ -z "$$WEBSOCKET_PORT" ]; do \
+		read -r -p "Enter the port you wish to associate with this container [WEBSOCKET_PORT]: " WEBSOCKET_PORT; echo "$$WEBSOCKET_PORT">>WEBSOCKET_PORT; cat WEBSOCKET_PORT; \
 	done ;
 
 exampledatadir:
