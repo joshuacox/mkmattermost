@@ -1,14 +1,9 @@
 version: "2"
 
 services:
-  base:
+  app:
     env_file:
       - mattermost.env
-
-
-  app:
-    extends:
-      service: base
     build:
       context: app
     restart: unless-stopped
@@ -17,7 +12,5 @@ services:
       - ./volumes/app/mattermost/data:/mattermost/data:rw
       - ./volumes/app/mattermost/logs:/mattermost/logs:rw
       - /etc/localtime:/etc/localtime:ro
-    depends_on:
-      - db
     ports:
       - "11080:80"
