@@ -1,0 +1,44 @@
+version: "2"
+
+services:
+  base:
+    env_file:
+      - mattermost.env
+
+
+  app:
+    extends:
+      service: base
+    build:
+      context: app
+      # comment out for team edition
+      dockerfile: Dockerfile-enterprise
+    restart: unless-stopped
+    volumes:
+      - ./volumes/app/mattermost/config:/mattermost/config:rw
+      - ./volumes/app/mattermost/data:/mattermost/data:rw
+      - ./volumes/app/mattermost/logs:/mattermost/logs:rw
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      # set same as db credentials and dbname
+      - MM_USERNAME=mmuser
+      - MM_PASSWORD=mmuser_password
+      - MM_DBNAME=mattermost
+      - DB_HOST_DBNAME=mattermost
+    depends_on:
+      - db
+
+  web:
+    extends:
+      service: base
+    build: web
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    volumes:
+      # This directory must have cert files
+      - ./volumes/web/cert:/cert:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - app
