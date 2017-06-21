@@ -11,6 +11,5 @@ services:
       - ./volumes/app/mattermost/config:/mattermost/config:rw
       - ./volumes/app/mattermost/data:/mattermost/data:rw
       - ./volumes/app/mattermost/logs:/mattermost/logs:rw
-      - /etc/localtime:/etc/localtime:ro
     ports:
       - "11080:80"
