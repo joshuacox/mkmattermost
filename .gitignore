@@ -10,3 +10,4 @@ REGISTRY_*
 IP
 PORT
 mattermost.env
+volumes
