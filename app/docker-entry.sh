@@ -4,7 +4,7 @@ MYCWD=$(pwd)
 # If TZ is not set then let's set it
 if [ -z ${TZ+x} ];
   then
-    export TZ="America/Chicago"
+    export TZ=America/Chicago
 fi
 
 rm /etc/localtime
