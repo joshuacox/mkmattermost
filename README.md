@@ -1,7 +1,7 @@
 # mkmattermost
 
-mattermost
-one
+This is a extension of the official
+[repo](https://github.com/mattermost/mattermost-docker)
 
 ### usage
 
@@ -11,4 +11,4 @@ Then edit mattermost.env to suit your needs
 
 `make`
 
-and your on your way!
+and you are on your way!
