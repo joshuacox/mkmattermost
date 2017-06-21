@@ -9,9 +9,9 @@ MM_DBNAME=${MM_DBNAME:-mattermost}
 TZ=${TZ:-America/Chicago}
 MM_CONFIG=/mattermost/config/config.json
 
-#rm /etc/localtime
-#cd /etc; ln -s /usr/share/zoneinfo/$TZ localtime
-#cd $MYCWD
+rm /etc/localtime
+cd /etc; ln -s /usr/share/zoneinfo/$TZ localtime
+cd $MYCWD
 
 if [ "${1:0:1}" = '-' ]; then
     set -- platform "$@"
