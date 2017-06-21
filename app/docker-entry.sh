@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ -z ${TZ+x} ]; then export TZ=America/Chicago; fi
+rm /etc/localtime
+cd /etc; ln -s /usr/share/zoneinfo/$TZ localtime
+
 DB_HOST=${DB_HOST:-db}
 DB_PORT_5432_TCP_PORT=${DB_PORT_5432_TCP_PORT:-5432}
 MM_USERNAME=${MM_USERNAME:-mmuser}
