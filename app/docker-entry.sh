@@ -1,22 +1,17 @@
 #!/bin/bash
 MYCWD=$(pwd)
 
-# If TZ is not set then let's set it
-if [ -z ${TZ+x} ];
-  then
-    export TZ=America/Chicago
-fi
-
-rm /etc/localtime
-cd /etc; ln -s /usr/share/zoneinfo/$TZ localtime
-cd $MYCWD
-
 DB_HOST=${DB_HOST:-db}
 DB_PORT_5432_TCP_PORT=${DB_PORT_5432_TCP_PORT:-5432}
 MM_USERNAME=${MM_USERNAME:-mmuser}
 MM_PASSWORD=${MM_PASSWORD:-mmuser_password}
 MM_DBNAME=${MM_DBNAME:-mattermost}
+TZ=${TZ:-America/Chicago}
 MM_CONFIG=/mattermost/config/config.json
+
+#rm /etc/localtime
+#cd /etc; ln -s /usr/share/zoneinfo/$TZ localtime
+#cd $MYCWD
 
 if [ "${1:0:1}" = '-' ]; then
     set -- platform "$@"
