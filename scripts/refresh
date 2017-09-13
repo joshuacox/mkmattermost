@@ -1,0 +1,9 @@
+#!/bin/bash
+DATE=$(date +%Y%m%d)
+FORTUNE=$(fortune -s|sed 's/"//g')
+UPDATER_PHRASE=MATTERMOST_UPDATED
+SED_S="s/^\ \ $UPDATER_PHRASE=.*$/  $UPDATER_PHRASE=$DATE/"
+
+git pull
+sed -i "$SED_S" app/Dockerfile
+git commit -am "$FORTUNE -- $DATE"
