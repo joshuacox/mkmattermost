@@ -1,7 +1,7 @@
 FROM ubuntu:14.04
 
 ENV PATH="/mattermost/bin:${PATH}" \
-  MATTERMOST_UPDATED=20170913
+  MATTERMOST_UPDATED=20170916
 
 RUN apt-get update && apt-get -y install curl netcat
 RUN DEBIAN_FRONTEND=noninteractive \
